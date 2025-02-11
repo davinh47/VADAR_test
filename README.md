@@ -2,7 +2,7 @@
 
 This is the code for the paper [Visual Agentic AI for Spatial Reasoning with a Dynamic API](https://glab-caltech.github.io/vadar/) by [Damiano Marsili](https://damianomarsili.github.io/), [Rohun Agrawal](https://rohunagrawal.github.io), [Yisong Yue](http://www.yisongyue.com/) and [Georgia Gkioxari](https://gkioxari.github.io/).
 
-### [Project Page](https://glab-caltech.github.io/vadar/) | [Paper]() | [Dataset](https://huggingface.co/datasets/dmarsili/Omni3D-Bench) | [BibTeX](#Citation)
+### [Project Page](https://glab-caltech.github.io/vadar/) | [Paper](https://arxiv.org/abs/2502.06787) | [Dataset](https://huggingface.co/datasets/dmarsili/Omni3D-Bench) | [BibTeX](#Citation)
 
 ![image](docs/method-figure.png)
 
@@ -123,7 +123,15 @@ See [`RESULTS.md`](RESULTS.md) for detailed VADAR performance on Omni3D-Bench, C
 If you use VADAR or the Omni3D-Bench dataset in your research, please use the following BibTeX entry.
 
 ```bibtex
-
+@misc{marsili2025visualagenticaispatial,
+      title={Visual Agentic AI for Spatial Reasoning with a Dynamic API}, 
+      author={Damiano Marsili and Rohun Agrawal and Yisong Yue and Georgia Gkioxari},
+      year={2025},
+      eprint={2502.06787},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2502.06787}, 
+}
 ```
 
 
