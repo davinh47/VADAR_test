@@ -20,7 +20,7 @@ sh setup.sh
 echo YOUR_OPEN_API_KEY > api.key
 ```
 
-Note: This setup assumes CUDA 12.2. If using a different version of CUDA, replace the `--index-url` in `setup.sh` with a CUDA runtime that is compatible with your CUDA version. For example, for CUDA 11.8, replace with `--index-url https://download.pytorch.org/whl/cu118`.
+Note: This setup assumes CUDA 12.2 and Python 3.10. If using a different version of CUDA, replace the `--index-url` in `setup.sh` with a CUDA runtime that is compatible with your CUDA version. For example, for CUDA 11.8, replace with `--index-url https://download.pytorch.org/whl/cu118`.
 
 VADAR uses [SAM2](https://github.com/facebookresearch/sam2), [UniDepth](https://github.com/lpiccinelli-eth/UniDepth) and [GroundingDINO](https://github.com/IDEA-Research/GroundingDINO).
 
