@@ -856,11 +856,14 @@ class ProgramAgent(Agent):
                         )
 
                     file.write((f"<h1>Program</h1>\n").encode("utf-8"))
-                    file.write(
-                        (f"<code>{program[0]}</code>\n".replace("\n", "<br>")).encode(
-                            "utf-8"
+                    if len(program) > 0:
+                        file.write(
+                            (f"<code>{program[0]}</code>\n".replace("\n", "<br>")).encode(
+                                "utf-8"
+                            )
                         )
-                    )
+                    else:
+                        file.write((f"<p>No program found</p>").encode("utf-8"))
 
                     file.close()
 
