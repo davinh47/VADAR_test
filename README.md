@@ -102,7 +102,7 @@ results/[timestamp]/
 │   ├── image_1_question_2.html 
 │   ├── ...
 │   └── programs.json               # JSON of generated programs.
-├── program_execution # execution log of programs. (TODO: dami here)
+├── program_execution # execution log of programs.
 │   ├── image_0_questions_0
 │   │   ├── executable_program.py   # python implementation of query solution
 │   │   ├── result.json             # JSON of program output
