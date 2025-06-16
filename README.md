@@ -123,14 +123,13 @@ See [`RESULTS.md`](RESULTS.md) for detailed VADAR performance on Omni3D-Bench, C
 If you use VADAR or the Omni3D-Bench dataset in your research, please use the following BibTeX entry.
 
 ```bibtex
-@misc{marsili2025visualagenticaispatial,
-      title={Visual Agentic AI for Spatial Reasoning with a Dynamic API}, 
-      author={Damiano Marsili and Rohun Agrawal and Yisong Yue and Georgia Gkioxari},
-      year={2025},
-      eprint={2502.06787},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV},
-      url={https://arxiv.org/abs/2502.06787}, 
+@inproceedings{Marsili_2025_CVPR,
+    author    = {Marsili, Damiano and Agrawal, Rohun and Yue, Yisong and Gkioxari, Georgia},
+    title     = {Visual Agentic AI for Spatial Reasoning with a Dynamic API},
+    booktitle = {Proceedings of the Computer Vision and Pattern Recognition Conference (CVPR)},
+    month     = {June},
+    year      = {2025},
+    pages     = {19446-19455}
 }
 ```
 
