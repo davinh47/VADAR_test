@@ -227,6 +227,7 @@ class Engine:
         question,
         execution_type=Literal["execution", "oracle_execution"],
         scene_json=None,
+        audit=False,
         error_count=0,
     ):
         program = program_data["program"]
@@ -256,7 +257,12 @@ class Engine:
                 )
             else:
                 program = ""
-        self._add_program_to_file(program)
+        if not audit:
+            self._add_program_to_file(program)
+        else:
+            new_program_content = [f"{line}\n" for line in program.split("\n")]
+            with open(self.program_executable_path, "w") as file:
+                file.writelines(new_program_content)
 
         if scene_json:
             self.modules_list.set_oracle(self.oracle, image, scene_json)

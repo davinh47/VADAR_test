@@ -31,7 +31,7 @@ from prompts.program_prompt import (
     PROGRAM_PROMPT_CLEVR,
 )
 from prompts.api_prompt import API_PROMPT, API_PROMPT_GQA, API_PROMPT_CLEVR
-
+from VADAR_test.prompts.audit_prompt import AUDIT_PROMPT
 
 class Agent:
     def __init__(
@@ -873,3 +873,122 @@ class ProgramAgent(Agent):
             json.dump(self.programs, file)
 
         return programs_path, self.programs
+
+
+class AuditAgent(Agent):
+    def __init__(
+        self, engine, model_name="gpt-4o"
+    ):
+        super().__init__(model_name)
+        self.engine = engine
+        self.new_programs = []
+        self.audit_json = []
+
+    def remove_substring(self, output, substring):
+        if substring in output:
+            return output.replace(substring, "")
+        else:
+            return output
+        
+    def __call__(self, execution_record, question_data, prompt):
+        # Compose the prompt with all required fields
+        prompt = prompt.format(
+            question=question_data["question"],
+            program=execution_record["program"],
+            result_namespace=execution_record["result_namespace"]
+        )
+        output, messages = self.generator.generate(prompt)
+        output = self.remove_substring(output, "```python")
+        output = self.remove_substring(output, "```")
+        result = re.findall(r"<verdict>(.*?)</verdict>", output, re.DOTALL)
+        if result and result[0] == "FAIL":
+            program = re.findall(r"<program>(.*?)</program>", output, re.DOTALL)
+            # Return as tuple, program with indentation fixed
+            if program:
+                new_program = correct_indentation(program[0]).replace("\t", "    ")
+            else:
+                new_program = execution_record["program"]
+            return new_program, output
+        # If not FAIL or verdict not present, return None
+        return None, None
+
+    def start_aduit(
+        self,
+        images_folder_path,
+        results_folder_path,
+        prompt=None,
+    ):
+        # Use dataset-specific prompt if none provided
+        if prompt is None:
+            prompt = AUDIT_PROMPT
+
+        folder_name = "audit_execution"
+        results_folder_path = os.path.join(
+            results_folder_path,
+            f"{folder_name}",
+        )
+        os.makedirs(results_folder_path)
+
+        for execution_record in tqdm(self.engine.execusion_json):
+            question_data = execution_record["question"]
+            question_results_path = os.path.join(
+                results_folder_path,
+                f"image_{question['image_index']}_question_{question['question_index']}/",
+            )
+            os.makedirs(question_results_path)
+            exec_env_path = os.path.join(question_results_path, "exec_env/")
+
+            os.makedirs(exec_env_path)
+
+            self.engine.trace_file_path = os.path.join(exec_env_path, "trace.html")
+            with open(self.engine.trace_file_path, "w+") as f:
+                f.write(f"<h1>Question: {question['question']}</h1>")
+            self.engine.program_executable_path = os.path.join(
+                exec_env_path, "executable_program.py"
+            )
+            self.engine.result_file = os.path.join(exec_env_path, "result.json")
+
+            question = question_data["question"]
+            result_program = execution_record["program"]
+            new_program, output = self(execution_record, question_data, prompt)
+            result_output = output
+            image = Image.open(
+                os.path.join(images_folder_path, question["image_filename"])
+            )
+            audit_count = 1
+            new_execution_record = None
+            while new_program and audit_count <= 3:
+                result_program = new_program
+                result_output = output
+                program_data = {
+                    "image_index": question_data["image_index"],
+                    "question_index": question_data["question_index"],
+                    "program": result_program,
+                    "prompt": prompt,
+                    "output": result_output,
+                    "model_name": self.generator.model_name,
+                }
+                new_execution_record = self.engine.run_program(
+                    program_data, image, question, "execution", audit=True, error_count=0
+                )
+                new_program, output = self(new_execution_record, question_data, prompt)
+                audit_count += 1
+
+            if new_execution_record:
+                self.audit_json.append(new_execution_record)
+            else:
+                self.audit_json.append(execution_record)
+
+            self.new_programs.append(program_data)
+
+            
+
+        audit_json_path = os.path.join(results_folder_path, "audit.json")
+        with open(audit_json_path, "w+") as file:
+            json.dump(self.audit_json, file)
+            self.save_evaluation_accuracy(
+                self.execution_json, results_folder_path, "execution"
+            )
+
+        return self.new_programs
+

@@ -10,7 +10,7 @@ module_path = os.path.abspath(os.path.join(".."))
 if module_path not in sys.path:
     sys.path.append(module_path)
 import json
-from agents.agents import SignatureAgent, APIAgent, ProgramAgent
+from agents.agents import SignatureAgent, APIAgent, ProgramAgent, AuditAgent
 from engine.engine import Engine
 from prompts.modules import MODULES_SIGNATURES, MODULES_SIGNATURES_CLEVR
 import random
@@ -77,6 +77,13 @@ def run_agents(args):
         scenes_json_path=args.scenes_json,
     )
 
+    # Audit execution
+    print("Auditing...")
+    audit_agent = AuditAgent(engine)
+    audit_agent.start_aduit(
+        args.image_pth,
+        results_folder_path=results_folder_path,
+    )
 
 if __name__ == "__main__":
     set_seeds(42)
