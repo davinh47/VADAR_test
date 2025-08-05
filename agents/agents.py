@@ -890,29 +890,29 @@ class AuditAgent(Agent):
         else:
             return output
         
-    def __call__(self, execution_record, question_data, prompt):
+    def __call__(self, execution_record, question_data, program, prompt):
         # Compose the prompt with all required fields
         prompt = prompt.format(
             question=question_data["question"],
-            program=execution_record["program"],
-            result_namespace=execution_record["result_namespace"]
+            program=program,
+            result_namespace=execution_record['execution']["result_namespace"]
         )
         output, messages = self.generator.generate(prompt)
         output = self.remove_substring(output, "```python")
         output = self.remove_substring(output, "```")
         result = re.findall(r"<verdict>(.*?)</verdict>", output, re.DOTALL)
         if result and result[0] == "FAIL":
-            program = re.findall(r"<program>(.*?)</program>", output, re.DOTALL)
+            new_program = re.findall(r"<program>(.*?)</program>", output, re.DOTALL)
             # Return as tuple, program with indentation fixed
-            if program:
-                new_program = correct_indentation(program[0]).replace("\t", "    ")
+            if new_program:
+                new_program = correct_indentation(new_program[0]).replace("\t", "    ")
             else:
-                new_program = execution_record["program"]
-            return new_program, output
+                new_program = program
+            return new_program, output, messages
         # If not FAIL or verdict not present, return None
-        return None, None
+        return None, output, messages
 
-    def start_aduit(
+    def start_audit(
         self,
         images_folder_path,
         results_folder_path,
@@ -929,11 +929,11 @@ class AuditAgent(Agent):
         )
         os.makedirs(results_folder_path)
 
-        for execution_record in tqdm(self.engine.execusion_json):
-            question_data = execution_record["question"]
+        for execution_record in tqdm(self.engine.execution_json):
+            question_data = execution_record['execution']["question"]
             question_results_path = os.path.join(
                 results_folder_path,
-                f"image_{question['image_index']}_question_{question['question_index']}/",
+                f"image_{question_data['image_index']}_question_{question_data['question_index']}/",
             )
             os.makedirs(question_results_path)
             exec_env_path = os.path.join(question_results_path, "exec_env/")
@@ -942,18 +942,25 @@ class AuditAgent(Agent):
 
             self.engine.trace_file_path = os.path.join(exec_env_path, "trace.html")
             with open(self.engine.trace_file_path, "w+") as f:
-                f.write(f"<h1>Question: {question['question']}</h1>")
+                f.write(f"<h1>Question: {question_data['question']}</h1>")
             self.engine.program_executable_path = os.path.join(
                 exec_env_path, "executable_program.py"
             )
             self.engine.result_file = os.path.join(exec_env_path, "result.json")
 
+            current_program_path = execution_record['execution']["result_namespace"].get("__file__")
+            program=""
+            with open(current_program_path, "r") as f:
+                program=f.read()
+            with open(self.engine.program_executable_path, 'w') as f:
+                f.write(program)
+            program = program.replace("program_execution", "audit_execution")
             question = question_data["question"]
-            result_program = execution_record["program"]
-            new_program, output = self(execution_record, question_data, prompt)
+            result_program = program
+            new_program, output, messages = self(execution_record, question_data, program, prompt)
             result_output = output
             image = Image.open(
-                os.path.join(images_folder_path, question["image_filename"])
+                os.path.join(images_folder_path, question_data["image_filename"])
             )
             audit_count = 1
             new_execution_record = None
@@ -966,28 +973,24 @@ class AuditAgent(Agent):
                     "program": result_program,
                     "prompt": prompt,
                     "output": result_output,
+                    "messages": messages,
                     "model_name": self.generator.model_name,
                 }
                 new_execution_record = self.engine.run_program(
-                    program_data, image, question, "execution", audit=True, error_count=0
+                    program_data, image, question_data, "execution", audit=True, error_count=0
                 )
-                new_program, output = self(new_execution_record, question_data, prompt)
+                new_program, output, messages = self(new_execution_record, question_data, result_program, prompt)
                 audit_count += 1
 
-            if new_execution_record:
-                self.audit_json.append(new_execution_record)
-            else:
-                self.audit_json.append(execution_record)
-
-            self.new_programs.append(program_data)
-
-            
+            final_record = new_execution_record if new_execution_record else execution_record
+            self.audit_json.append(final_record)
+            self.new_programs.append(final_record['execution']['program'])
 
         audit_json_path = os.path.join(results_folder_path, "audit.json")
         with open(audit_json_path, "w+") as file:
             json.dump(self.audit_json, file)
-            self.save_evaluation_accuracy(
-                self.execution_json, results_folder_path, "execution"
+            self.engine.save_evaluation_accuracy(
+                self.audit_json, results_folder_path, "execution"
             )
 
         return self.new_programs

@@ -3,9 +3,6 @@ You are an expert logician capable of answering spatial reasoning problems with 
 
 Answer the following question using a program that utilizes the API to decompose more complicated tasks and solve the problem. 
 
-# Initialize a tracking container
-Initialize a dictionary named `track = {{}}` at the start of your program. For each vision API call (e.g., `loc`, `depth`, `get_2D_object_size`), record its return value in `track` with a clear key (e.g., `track["object_bboxes"] = loc(image, "object")`). At the end of your program, return both `final_result` and `track` as `(final_result, track)`.
-
 I am going to give you two examples of how you might approach a problem in psuedocode, then I will give you an API and some instructions for you to answer in real code.
 
 Example 1:

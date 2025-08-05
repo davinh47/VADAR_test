@@ -14,7 +14,7 @@ from sam2.sam2_image_predictor import SAM2ImagePredictor
 from unidepth.models import UniDepthV2
 import groundingdino.datasets.transforms as T
 
-from VADAR.prompts.vqa_prompt import (
+from VADAR_test.prompts.vqa_prompt import (
     VQA_PROMPT_CLEVR,
     VQA_PROMPT_GQA,
     VQA_PROMPT_GQA_HOLISTIC,

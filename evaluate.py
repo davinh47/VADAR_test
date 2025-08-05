@@ -80,7 +80,7 @@ def run_agents(args):
     # Audit execution
     print("Auditing...")
     audit_agent = AuditAgent(engine)
-    audit_agent.start_aduit(
+    audit_agent.start_audit(
         args.image_pth,
         results_folder_path=results_folder_path,
     )
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--num-api-questions",
-        default=10,
+        default=3,
         type=int,
         help="Number of questions to loop through for api (default: %(default)s)",
     )
