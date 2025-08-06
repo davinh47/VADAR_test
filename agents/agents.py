@@ -877,12 +877,13 @@ class ProgramAgent(Agent):
 
 class AuditAgent(Agent):
     def __init__(
-        self, engine, model_name="gpt-4o"
+        self, engine, predef_signatures, model_name="gpt-4o"
     ):
         super().__init__(model_name)
         self.engine = engine
-        self.new_programs = []
+        self.audit_records = []
         self.audit_json = []
+        self.predef_signatures = predef_signatures
 
     def remove_substring(self, output, substring):
         if substring in output:
@@ -891,11 +892,17 @@ class AuditAgent(Agent):
             return output
         
     def __call__(self, execution_record, question_data, program, prompt):
+        result_namespace = execution_record['execution']["result_namespace"]
+        extracted_result = dict()
+        for key in result_namespace:
+            if not key.startswith("__"):
+                extracted_result[key] = result_namespace[key]
         # Compose the prompt with all required fields
         prompt = prompt.format(
             question=question_data["question"],
+            predef_signatures=self.predef_signatures,
             program=program,
-            result_namespace=execution_record['execution']["result_namespace"]
+            result_namespace=extracted_result
         )
         output, messages = self.generator.generate(prompt)
         output = self.remove_substring(output, "```python")
@@ -905,7 +912,7 @@ class AuditAgent(Agent):
             new_program = re.findall(r"<program>(.*?)</program>", output, re.DOTALL)
             # Return as tuple, program with indentation fixed
             if new_program:
-                new_program = correct_indentation(new_program[0]).replace("\t", "    ")
+                new_program = new_program[0]
             else:
                 new_program = program
             return new_program, output, messages
@@ -918,7 +925,6 @@ class AuditAgent(Agent):
         results_folder_path,
         prompt=None,
     ):
-        # Use dataset-specific prompt if none provided
         if prompt is None:
             prompt = AUDIT_PROMPT
 
@@ -956,35 +962,50 @@ class AuditAgent(Agent):
                 f.write(program)
             program = program.replace("program_execution", "audit_execution")
             question = question_data["question"]
-            result_program = program
+
+            audit_count = 0
+            max_audit_times = 5
+            # Audit previous program execution
+            print(f"Auditing (attempt {audit_count}) for question {question_data['question_index']}")
             new_program, output, messages = self(execution_record, question_data, program, prompt)
-            result_output = output
             image = Image.open(
                 os.path.join(images_folder_path, question_data["image_filename"])
             )
-            audit_count = 1
+
             new_execution_record = None
-            while new_program and audit_count <= 3:
-                result_program = new_program
-                result_output = output
+            audit_record = {
+                "image_index": question_data["image_index"],
+                "question_index": question_data["question_index"],
+                "audit_result": [{
+                    "audit_index":audit_count,
+                    "audit_output": output,
+                }],
+            }
+            while new_program and audit_count <= max_audit_times:
+                audit_count += 1
                 program_data = {
                     "image_index": question_data["image_index"],
                     "question_index": question_data["question_index"],
-                    "program": result_program,
+                    "program": new_program,
                     "prompt": prompt,
-                    "output": result_output,
+                    "output": output,
                     "messages": messages,
                     "model_name": self.generator.model_name,
                 }
                 new_execution_record = self.engine.run_program(
                     program_data, image, question_data, "execution", audit=True, error_count=0
                 )
-                new_program, output, messages = self(new_execution_record, question_data, result_program, prompt)
-                audit_count += 1
+                if audit_count < max_audit_times:
+                    print(f"Auditing (attempt {audit_count}) for question {question_data['question_index']}")
+                    new_program, output, messages = self(new_execution_record, question_data, new_program, prompt)
+                    audit_record["audit_result"].append({
+                        "audit_index":audit_count,
+                        "audit_output": output,
+                    })
 
-            final_record = new_execution_record if new_execution_record else execution_record
-            self.audit_json.append(final_record)
-            self.new_programs.append(final_record['execution']['program'])
+            final_execution_record = new_execution_record if new_execution_record else execution_record
+            self.audit_json.append(final_execution_record)
+            self.audit_records.append(audit_record)
 
         audit_json_path = os.path.join(results_folder_path, "audit.json")
         with open(audit_json_path, "w+") as file:
@@ -992,6 +1013,6 @@ class AuditAgent(Agent):
             self.engine.save_evaluation_accuracy(
                 self.audit_json, results_folder_path, "execution"
             )
-
-        return self.new_programs
-
+        audit_records_path = os.path.join(results_folder_path, "audit_records.json")
+        with open(audit_records_path, "w+") as file:
+            json.dump(self.audit_records, file)

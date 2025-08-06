@@ -1,21 +1,19 @@
 AUDIT_PROMPT = """
 You are an audit agent responsible for reviewing visual reasoning programs and their execution traces. Your task is to identify only meaningful and necessary problems that may affect the final result. You should:
 - Focus on logic flaws, unit mismatches, or incorrect use of bounding boxes, depth information or APIs that are likely to cause wrong answers.
-- Avoid nitpicking stylistic issues, redundant yet harmless code, or design choices that still produce correct results.
-- Propose precise and minimal changes where necessary to fix correctness issues.
-- When needed, modify the program or it's embeded APIs directly and output the corrected version of program in the specified format.
-- Any functions used in the program that are not explicitly defined are part of a predefined API library and do not need to be imported, modified or redefined.
-- If you believe the bug stems from a predefined API, describe the issue in `<issues>` but do not attempt to change its implementation.
+- Review object bounding box and depth information in result_namespace to determine whether unit normalization, bounding box merging, or duplicate removal is necessary.
+- Evaluate whether the final_result is logically consistent with the question, and revise the program if needed to produce a result aligned with the question's intent.
 
 You will receive:
 - question: the original natural-language question.
+- predef_signatures: a list of predefined vision-related function signatures (e.g., loc, depth). These functions are already available in the environment and can be used directly—do not modify or re-implement them, and do not attempt to import them.
 - program: the Python code that was executed, wrapped in <program>...</program> tags.
 - result_namespace: The dictionary of global variables generated from executing the program. This includes:
     - final_result: the final result of the program
     - any other relevant global variables if present (including bounding box, depth information of question-related objects in image)
 
 Your goal is to improve the program's accuracy and robustness, not to rewrite it unless strictly necessary.
-Output format(STRICT):
+Output format (STRICT):
 - If no issues are found, respond with:
 <verdict>PASS</verdict>
 
@@ -31,6 +29,15 @@ Output format(STRICT):
 Note: Your output <program> must be a complete Python script with necessary imports, helper functions, and valid indentation. Do not output a partial patch—include the entire corrected code.
 Output must strictly follow the specified format. Do not include any additional text or explanations outside of it.
 The corrected program must be included in the tags <program><\program>, ensure the program stores the answer in a variable called "final_result".
+
+Here are some rules to follow:
+1) Avoid nitpicking stylistic issues, redundant yet harmless code, or design choices that still produce correct results.
+2) Propose precise and minimal changes where necessary to fix correctness issues.
+3) When needed, modify the program or its embedded APIs directly and output the corrected version of program in the specified format.
+4) If you believe the bug stems from a predefined API, describe the issue in `<issues>` but do not attempt to change its implementation.
+5) When modifying calculation logic, strongly prefer simple, robust, and clearly correct alternatives.
+6) When calling a predefined API, make sure to follow its exact function signature.
+7) Avoid any change that adds complexity or uncertainty without a corresponding clear benefit in accuracy.
 
 Here are some helpful definitions:
 1) 2D distance/size refers to distance/size in pixel space.
@@ -51,10 +58,11 @@ Here are some helpful tips:
 9) Do NOT round your answers! Always leave your answers as decimals. If the question asks "how many X do you need to get to Y" you should NOT round - leave your answer as a floating point division.
 10) To determine if an object is in another object - use VQA. For example to determine if a book is in the shelf vqa(image, 'Is the book in the shelf?', book_bbox)
 11) If the program involves multiple bounding boxes for the same object type (e.g., towels, books), ensure it avoids counting overlapping or highly similar boxes as distinct items. Consider using `same_object` or reasoning based on relative location, size, and overlap to merge duplicates.
-12) If the program assumes only one object for "the [object]" mentioned in the question, consider whether selecting the largest bounding box by area better represents the intended target. Favor the largest bbox if it aligns more closely with user intent.
+12) If the program assumes only one object for "the [object]" mentioned in the question, leave it as it is.
 
 Now apply your reasoning to the following inputs:
 - question: {question}
+- predef_signatures: {predef_signatures}
 - program: <program>{program}</program>
 - result_namespace: {result_namespace}
 """

@@ -113,6 +113,7 @@ class Engine:
                         question,
                         "oracle_execution",
                         scene_json,
+                        audit,
                         error_count=0,
                     )
                 )
@@ -230,6 +231,7 @@ class Engine:
         audit=False,
         error_count=0,
     ):
+        print(f"Running program (attempt {error_count}) for image {question['image_index']} question {question['question_index']}")
         program = program_data["program"]
 
         self.modules_list.set_trace_path(self.trace_file_path)
@@ -253,6 +255,7 @@ class Engine:
                     question,
                     execution_type,
                     scene_json,
+                    audit,
                     error_count + 1,
                 )
             else:
@@ -269,6 +272,7 @@ class Engine:
 
         error = self._execute_file()
         if error and error_count < 5:
+            print(f"Finished program execution with error: {error}")
             corrected_program_data = self.correct_program_error(
                 program_data, error, question
             )
@@ -282,6 +286,7 @@ class Engine:
                 question,
                 execution_type,
                 scene_json,
+                audit,
                 error_count + 1,
             )
 
@@ -334,6 +339,7 @@ class Engine:
             return output
 
     def correct_program_error(self, program_data, error, question):
+        print("Attempting to regenerate program due to error:", error)
         messages = program_data["messages"]
         messages.append(
             {
