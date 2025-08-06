@@ -964,7 +964,7 @@ class AuditAgent(Agent):
             question = question_data["question"]
 
             audit_count = 0
-            max_audit_times = 5
+            max_audit_times = 3
             # Audit previous program execution
             print(f"Auditing (attempt {audit_count}) for question {question_data['question_index']}")
             new_program, output, messages = self(execution_record, question_data, program, prompt)
@@ -981,8 +981,8 @@ class AuditAgent(Agent):
                     "audit_output": output,
                 }],
             }
-            while new_program and audit_count <= max_audit_times:
-                audit_count += 1
+            audit_count += 1
+            while new_program and audit_count < max_audit_times:
                 program_data = {
                     "image_index": question_data["image_index"],
                     "question_index": question_data["question_index"],
@@ -995,13 +995,20 @@ class AuditAgent(Agent):
                 new_execution_record = self.engine.run_program(
                     program_data, image, question_data, "execution", audit=True, error_count=0
                 )
-                if audit_count < max_audit_times:
-                    print(f"Auditing (attempt {audit_count}) for question {question_data['question_index']}")
-                    new_program, output, messages = self(new_execution_record, question_data, new_program, prompt)
-                    audit_record["audit_result"].append({
-                        "audit_index":audit_count,
-                        "audit_output": output,
-                    })
+
+                print(f"Auditing (attempt {audit_count}) for question {question_data['question_index']}")
+                new_program, output, messages = self(new_execution_record, question_data, new_program, prompt)
+                audit_record["audit_result"].append({
+                    "audit_index":audit_count,
+                    "audit_output": output,
+                })
+                audit_count += 1
+                
+            if new_program:
+                program_data["program"] = new_program
+                new_execution_record = self.engine.run_program(
+                    program_data, image, question_data, "execution", audit=True, error_count=0
+                )
 
             final_execution_record = new_execution_record if new_execution_record else execution_record
             self.audit_json.append(final_execution_record)
