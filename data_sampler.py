@@ -13,7 +13,7 @@ json_path = os.path.join(folder, 'annotations.json')
 with open(json_path, 'r') as f:
     json_file = json.load(f)
 
-random.seed(15)
+random.seed(30)
 sampled_data = random.sample(json_file['questions'], 20)
 
 for entry in sampled_data:

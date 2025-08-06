@@ -954,15 +954,19 @@ class AuditAgent(Agent):
             )
             self.engine.result_file = os.path.join(exec_env_path, "result.json")
 
-            current_program_path = execution_record['execution']["result_namespace"].get("__file__")
+            current_program_path = self.engine.program_executable_path.replace("audit_execution", "program_execution")
             program=""
             with open(current_program_path, "r") as f:
                 program=f.read()
             with open(self.engine.program_executable_path, 'w') as f:
                 f.write(program)
             program = program.replace("program_execution", "audit_execution")
-            question = question_data["question"]
 
+            executions = {-1:{
+                "execution": execution_record,
+                "program": program,
+                "final_result" : execution_record["execution"]["result_namespace"].get("final_result", None)
+            }}
             audit_count = 0
             max_audit_times = 3
             # Audit previous program execution
@@ -971,11 +975,12 @@ class AuditAgent(Agent):
             image = Image.open(
                 os.path.join(images_folder_path, question_data["image_filename"])
             )
-
+            
             new_execution_record = None
             audit_record = {
                 "image_index": question_data["image_index"],
                 "question_index": question_data["question_index"],
+                "audit_fallback": False,
                 "audit_result": [{
                     "audit_index":audit_count,
                     "audit_output": output,
@@ -996,6 +1001,12 @@ class AuditAgent(Agent):
                     program_data, image, question_data, "execution", audit=True, error_count=0
                 )
 
+                executions[audit_count-1] = {
+                    "execution": new_execution_record,
+                    "program": new_program,
+                    "final_result" : new_execution_record["execution"]["result_namespace"].get("final_result", None),
+                }
+
                 print(f"Auditing (attempt {audit_count}) for question {question_data['question_index']}")
                 new_program, output, messages = self(new_execution_record, question_data, new_program, prompt)
                 audit_record["audit_result"].append({
@@ -1009,9 +1020,26 @@ class AuditAgent(Agent):
                 new_execution_record = self.engine.run_program(
                     program_data, image, question_data, "execution", audit=True, error_count=0
                 )
+                executions[audit_count-1] = {
+                    "execution": new_execution_record,
+                    "program": new_program,
+                    "final_result" : new_execution_record["execution"]["result_namespace"].get("final_result", None)
+                }
 
-            final_execution_record = new_execution_record if new_execution_record else execution_record
-            self.audit_json.append(final_execution_record)
+            # Check if valid audit, if not valid, go back to previous version
+            index = len(executions) - 2
+            while index > -1:
+                result = executions[index]["final_result"]
+                if not result:
+                    index -= 1
+                else:
+                    break
+                
+            if index != len(executions) - 2:
+                with open(self.engine.program_executable_path, 'w') as f:
+                    f.write(executions[index]["program"])
+                audit_record["audit_fallback"] = True
+            self.audit_json.append(executions[index]["execution"])
             self.audit_records.append(audit_record)
 
         audit_json_path = os.path.join(results_folder_path, "audit.json")

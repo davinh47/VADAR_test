@@ -294,7 +294,10 @@ class Engine:
             with open(self.result_file, "r") as f:
                 result_namespace = json.load(f)
         except Exception as e:
-            result_namespace = {"final_result": f"Error: {error}"}
+            if not audit:
+                result_namespace = {"final_result": f"Error: {error}"}
+            else:
+                result_namespace = {"final_result": None}
 
         execution_data[execution_type] = {}
         execution_data[execution_type]["question"] = question
