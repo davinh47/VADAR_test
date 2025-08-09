@@ -11,6 +11,7 @@ import linecache
 import runpy
 import shutil
 import traceback
+import pandas as pd
 
 module_path = os.path.abspath(os.path.join(".."))
 if module_path not in sys.path:
@@ -31,7 +32,8 @@ from prompts.program_prompt import (
     PROGRAM_PROMPT_CLEVR,
 )
 from prompts.api_prompt import API_PROMPT, API_PROMPT_GQA, API_PROMPT_CLEVR
-from VADAR_test.prompts.audit_prompt import AUDIT_PROMPT
+from prompts.audit_prompt import AUDIT_PROMPT
+from prompts.decision_maker_prompt import DM_PROMPT
 
 class Agent:
     def __init__(
@@ -883,6 +885,7 @@ class AuditAgent(Agent):
         self.engine = engine
         self.audit_records = []
         self.audit_json = []
+        self.audit_results = dict()
         self.predef_signatures = predef_signatures
 
     def remove_substring(self, output, substring):
@@ -1026,23 +1029,25 @@ class AuditAgent(Agent):
                     "final_result" : new_execution_record["execution"]["result_namespace"].get("final_result", None)
                 }
 
-            # Check if valid audit, if not valid, go back to previous version
+            # Check if valid audit, find best program of a valid result
+            answers = {
+                idx: {"program": rec["program"], "answer": rec["final_result"]}
+                for idx, rec in executions.items()
+            }
+            if len(answers) == 1:
+                index = 0
+            else:
+                index = self.decision_maker(question_data["question"], answers)
 
-            # index = len(executions) - 1
-            # while index > 0:
-            #     result = executions[index]["final_result"]
-            #     if not result:
-            #         index -= 1
-            #     else:
-            #         break
-            answers = {{"program":i["program"], "answer":i["final_result"]} for i in executions}
-            index = self.decision_maker(question_data["question"])
-            if index != len(executions) - 1:
+            if index != len(answers) - 1:
                 with open(self.engine.program_executable_path, 'w') as f:
                     f.write(executions[index]["program"])
+            if index == 0:
                 audit_record["audit_fallback"] = True
             self.audit_json.append(executions[index]["execution"])
             self.audit_records.append(audit_record)
+
+            self.audit_results[question_data["question_index"]] = {a_idx: rec["answer"] for a_idx, rec in answers.items()}
 
         audit_json_path = os.path.join(results_folder_path, "audit.json")
         with open(audit_json_path, "w+") as file:
@@ -1054,23 +1059,14 @@ class AuditAgent(Agent):
         with open(audit_records_path, "w+") as file:
             json.dump(self.audit_records, file)
 
+        df = pd.DataFrame.from_dict(self.audit_results, orient="index")
+        audit_results_csv_path = os.path.join(results_folder_path, "audit_results.csv")
+        df.to_csv(audit_results_csv_path, index_label="question_index")
+
     def decision_maker(self, question, answers):
-        prompt = f"""
-You are given an image-based question and multiple candidate answers, each associated with a program that produced it.
-
-Input:
-question: {question}
-answers: {answers}
-
-1. First, identify all answers that are logical and consistent with the question.
-2. Among these logical answers, compare their corresponding programs. Choose the one that:
-   - does not contain major reasoning errors;
-   - most closely aligns with the intent of the question.
-3. If multiple logical answers meet the above criteria, select the one with the highest index.
-4. If none of the answers are logical, or all associated programs are flawed, return index 0 (the original result).
-
-Wrap your final selected index in <index>...</index>.
-"""
+        prompt = DM_PROMPT.format(
+            question=question, answers=answers
+        )
         output, messages = self.generator.generate(prompt)
         index = re.findall(r"<index>(.*?)</index>", output, re.DOTALL)
         if not index:
