@@ -962,7 +962,7 @@ class AuditAgent(Agent):
                 f.write(program)
             program = program.replace("program_execution", "audit_execution")
 
-            executions = {-1:{
+            executions = {0:{
                 "execution": execution_record,
                 "program": program,
                 "final_result" : execution_record["execution"]["result_namespace"].get("final_result", None)
@@ -1001,7 +1001,7 @@ class AuditAgent(Agent):
                     program_data, image, question_data, "execution", audit=True, error_count=0
                 )
 
-                executions[audit_count-1] = {
+                executions[audit_count] = {
                     "execution": new_execution_record,
                     "program": new_program,
                     "final_result" : new_execution_record["execution"]["result_namespace"].get("final_result", None),
@@ -1020,22 +1020,24 @@ class AuditAgent(Agent):
                 new_execution_record = self.engine.run_program(
                     program_data, image, question_data, "execution", audit=True, error_count=0
                 )
-                executions[audit_count-1] = {
+                executions[audit_count] = {
                     "execution": new_execution_record,
                     "program": new_program,
                     "final_result" : new_execution_record["execution"]["result_namespace"].get("final_result", None)
                 }
 
             # Check if valid audit, if not valid, go back to previous version
-            index = len(executions) - 2
-            while index > -1:
-                result = executions[index]["final_result"]
-                if not result:
-                    index -= 1
-                else:
-                    break
-                
-            if index != len(executions) - 2:
+
+            # index = len(executions) - 1
+            # while index > 0:
+            #     result = executions[index]["final_result"]
+            #     if not result:
+            #         index -= 1
+            #     else:
+            #         break
+            answers = {{"program":i["program"], "answer":i["final_result"]} for i in executions}
+            index = self.decision_maker(question_data["question"])
+            if index != len(executions) - 1:
                 with open(self.engine.program_executable_path, 'w') as f:
                     f.write(executions[index]["program"])
                 audit_record["audit_fallback"] = True
@@ -1051,3 +1053,31 @@ class AuditAgent(Agent):
         audit_records_path = os.path.join(results_folder_path, "audit_records.json")
         with open(audit_records_path, "w+") as file:
             json.dump(self.audit_records, file)
+
+    def decision_maker(self, question, answers):
+        prompt = f"""
+You are given an image-based question and multiple candidate answers, each associated with a program that produced it.
+
+Input:
+question: {question}
+answers: {answers}
+
+1. First, identify all answers that are logical and consistent with the question.
+2. Among these logical answers, compare their corresponding programs. Choose the one that:
+   - does not contain major reasoning errors;
+   - most closely aligns with the intent of the question.
+3. If multiple logical answers meet the above criteria, select the one with the highest index.
+4. If none of the answers are logical, or all associated programs are flawed, return index 0 (the original result).
+
+Wrap your final selected index in <index>...</index>.
+"""
+        output, messages = self.generator.generate(prompt)
+        index = re.findall(r"<index>(.*?)</index>", output, re.DOTALL)
+        if not index:
+            return 0
+        else:
+            try:
+                index = int(index[0])
+            except:
+                index = 0
+            return index

@@ -1,42 +1,52 @@
 AUDIT_PROMPT = """
-You are an audit agent responsible for reviewing visual reasoning programs and their execution traces. Your task is to identify only meaningful and necessary problems that could affect the final result. You should:
-- Focus on logic flaws, unit mismatches, or incorrect use of bounding boxes, depth information or APIs that are likely to cause wrong answers.
-- Review object bounding box and depth information in result_namespace to determine whether unit normalization, bounding box merging, or duplicate removal is necessary.
-- Evaluate whether the final_result is logically consistent with the question, and revise the program if needed to produce a result aligned with the question's intent.
-- Avoid nitpicking stylistic issues, redundant yet harmless code, or design choices that still produce correct results.
-- Propose precise and minimal changes where necessary to fix correctness issues.
-- When needed, modify the program or its embedded APIs directly and output the corrected version of program in the specified format.
-- If you believe the bug stems from a predefined API, describe the issue in `<issues>` but do not attempt to change its implementation.
-- When modifying calculation logic, strongly prefer simple, robust, and clearly correct alternatives.
-- When calling a predefined API, make sure to follow its exact function signature.
-- Avoid any change that adds complexity or uncertainty without a corresponding clear benefit in accuracy.
-- If the program assumes only one object for "the [object]" mentioned in the question while multiple bounding boxes are detected, treat this as acceptable unless it clearly leads to a wrong result or contradicts the question's intent.
+You are an audit agent reviewing visual reasoning programs and their execution traces. Your task is to identify and correct only meaningful issues that could lead to wrong final answers.
 
-You will receive:
-- question: the original natural-language question.
-- predef_signatures: a list of predefined vision-related function signatures (e.g., loc, depth). These functions are already available in the environment and can be used directly—do not modify or re-implement them, and do not attempt to import them.
-- program: the Python code that was executed, wrapped in <program>...</program> tags.
-- result_namespace: The dictionary of global variables generated from executing the program. This includes:
-    - final_result: the final result of the program
-    - any other relevant global variables if present (including bounding box, depth information of question-related objects in image)
+Focus on:
+1. Obvious inconsistencies between final_result and the question’s expected logic or units.
+   - e.g., final_result is None, negative when counting objects, or clearly unreasonable given the context (e.g., asking for distance in km and result is 0.0001 or 10000).
+   - If this is the case, identify and fix the relevant code segment responsible for the error.
+2. Logical flaws in how bounding boxes, depth values, or 3D calculations are used — only if they directly affect final_result.
+3. Unit mismatches (e.g., multiplying 2D width by height instead of depth), especially when they would clearly lead to erroneous results.
+4. Obvious misuse of predefined APIs or assumptions that contradict the question’s logic (e.g., assuming only one object when the question implies multiple).
 
-Your goal is to improve the program's accuracy and robustness, not to rewrite it unless strictly necessary.
+Only revise the program if at least one of the above issues is clearly identified. Avoid unnecessary changes when final_result is reasonable and aligned with question intent.
+
+DO NOT:
+- Modify predefined API implementations or import them;
+- Overhaul structurally correct programs;
+- Fix harmless stylistic or redundant code.
+
+OK TO:
+- Adjust API calls or arguments for correctness;
+- Replace incorrect formulas with simpler, correct alternatives;
+- Simplify fragile or obviously flawed logic that impacts results.
+
 Output format (STRICT):
 - If no issues are found, respond with:
 <verdict>PASS</verdict>
 
-- If you identify any problems or potential improvements, respond with:
+- If any issues are found and fixed, respond with:
 <verdict>FAIL</verdict>
 <issues>
-(describe what issues were identified and why changes were necessary)
+(describe the problem and reasoning for the fix)
 </issues>
 <program>
-(the full corrected version of the program, ready to be executed)
+(full corrected Python program here, with valid syntax and indentation)
 </program>
 
-Note: Your output <program> must be a complete Python script with necessary imports, helper functions, and valid indentation. Do not output a partial patch—include the entire corrected code.
-Output must strictly follow the specified format. Do not include any additional text or explanations outside of it.
-The corrected program must be included in the tags <program><\program>, ensure the program stores the answer in a variable called "final_result".
+NOTES:
+- Always store the final answer in a variable named `final_result`.
+- Include all necessary imports and helper functions in the <program> output.
+- Do not output anything outside the specified format.
+- When using predefined APIs (e.g., loc, depth, get_2D_object_size), strictly follow their expected function signatures.
+
+Inputs:
+- question: the original natural-language question.
+- predef_signatures: a list of callable predefined vision APIs.
+- program: the code that was executed, inside <program>...</program> tags.
+- result_namespace: the global variable namespace produced by running the program, including final_result and any bounding boxes, depths, etc.
+
+Your goal is to improve the program's accuracy and robustness, but only when necessary.
 
 Here are some helpful definitions:
 1) 2D distance/size refers to distance/size in pixel space.
