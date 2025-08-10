@@ -196,7 +196,6 @@ class Engine:
                 with open(engine.result_file, "r") as f:
                     result_namespace = json.load(f)
             except Exception as e:
-                print(e)
                 result_namespace = {"final_result": f"Error: {error}"}
 
             execution_data["oracle_execution"] = {}
@@ -232,7 +231,7 @@ class Engine:
         audit=False,
         error_count=0,
     ):
-        print(f"Running program (attempt {error_count}) for image {question['image_index']} question {question['question_index']}")
+        # print(f"Running program (attempt {error_count}) for image {question['image_index']} question {question['question_index']}")
         program = program_data["program"]
 
         self.modules_list.set_trace_path(self.trace_file_path)
@@ -295,7 +294,7 @@ class Engine:
             with open(self.result_file, "r") as f:
                 result_namespace = json.load(f)
         except Exception as e:
-            print(e)
+            print(f"{question['question_index']} : ", e)
             result_namespace = {"final_result": f"Error: {error}"}
 
         execution_data[execution_type] = {}
@@ -341,7 +340,7 @@ class Engine:
             return output
 
     def correct_program_error(self, program_data, error, question):
-        print("Attempting to regenerate program due to error:", error)
+        # print("Attempting to regenerate program due to error:", error)
         messages = program_data["messages"]
         messages.append(
             {

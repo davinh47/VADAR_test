@@ -961,9 +961,9 @@ class AuditAgent(Agent):
             program=""
             with open(current_program_path, "r") as f:
                 program=f.read()
+            program = program.replace("program_execution", "audit_execution")
             with open(self.engine.program_executable_path, 'w') as f:
                 f.write(program)
-            program = program.replace("program_execution", "audit_execution")
 
             executions = {0:{
                 "execution": execution_record,

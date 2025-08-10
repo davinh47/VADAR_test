@@ -15,6 +15,7 @@ DO NOT:
 - Modify predefined API implementations or import them;
 - Overhaul structurally correct programs;
 - Fix harmless stylistic or redundant code.
+- Delete, modify, or move the final WRITE NAMESPACE block that saves all serializable globals
 
 OK TO:
 - Adjust API calls or arguments for correctness;

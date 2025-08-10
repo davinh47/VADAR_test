@@ -13,8 +13,8 @@ json_path = os.path.join(folder, 'annotations.json')
 with open(json_path, 'r') as f:
     json_file = json.load(f)
 
-random.seed(15)
-sampled_data = random.sample(json_file['questions'], 20)
+random.seed(95)
+sampled_data = random.sample(json_file['questions'], 6)
 
 for entry in sampled_data:
     rel_path = entry["image_filename"]  # full path
