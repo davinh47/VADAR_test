@@ -113,14 +113,14 @@ class Engine:
                         question,
                         "oracle_execution",
                         scene_json,
-                        audit,
+                        audit=False,
                         error_count=0,
                     )
                 )
             else:
                 self.execution_json.append(
                     self.run_program(
-                        program_data, image, question, "execution", error_count=0
+                        program_data, image, question, "execution", audit=False, error_count=0
                     )
                 )
 
@@ -196,6 +196,7 @@ class Engine:
                 with open(engine.result_file, "r") as f:
                     result_namespace = json.load(f)
             except Exception as e:
+                print(e)
                 result_namespace = {"final_result": f"Error: {error}"}
 
             execution_data["oracle_execution"] = {}
@@ -294,10 +295,8 @@ class Engine:
             with open(self.result_file, "r") as f:
                 result_namespace = json.load(f)
         except Exception as e:
-            if not audit:
-                result_namespace = {"final_result": f"Error: {error}"}
-            else:
-                result_namespace = {"final_result": None}
+            print(e)
+            result_namespace = {"final_result": f"Error: {error}"}
 
         execution_data[execution_type] = {}
         execution_data[execution_type]["question"] = question
@@ -443,10 +442,10 @@ class Engine:
 
         with open(results_pth, "w") as f:
             f.write("-------- Summary Results --------\n")
-            f.write(f"Yes/No Accuracy: {yn_acc}\n")
-            f.write(f"Multiple Choice Accuracy: {multi_acc}\n")
-            f.write(f"Numeric (count) Accuracy: {num_ct_acc}\n")
-            f.write(f"Numeric (other) MRA: {num_other_mra}")
+            f.write(f"Yes/No Accuracy: {yn_acc}     Num_questions:{yn_n}\n")
+            f.write(f"Multiple Choice Accuracy: {multi_acc}     Num_questions:{multi_n}\n")
+            f.write(f"Numeric (count) Accuracy: {num_ct_acc}    Num_questions:{num_ct_n}\n")
+            f.write(f"Numeric (other) MRA: {num_other_mra}      Num_questions:{num_other_n}")
 
     def save_evaluation_accuracy(
         self,

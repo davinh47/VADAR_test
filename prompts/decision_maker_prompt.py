@@ -9,6 +9,7 @@ Select ONE index to return using these rules:
 
 0) First, identify all answers that are logical and consistent with the question.
    - Logical = not None/NaN/±inf and not an empty string; type matches the question (e.g., yes/no → "yes"/"no").
+   - Reject values whose scale is far outside any reference measurement given in the question. For example, if the question says “The couch is 0.4 m tall” and a candidate answer for another piece of indoor furniture in the same image is 1200 m or 0.003m is not logical. Prefer answers within the same order of magnitude as the reference unless the units are clearly different.
 
 1) Prefer NON-GUESS over GUESS:
    - If an answer/program contains the marker "is_guess = True", treat it as a guess.

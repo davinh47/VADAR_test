@@ -971,9 +971,9 @@ class AuditAgent(Agent):
                 "final_result" : execution_record["execution"]["result_namespace"].get("final_result", None)
             }}
             audit_count = 0
-            max_audit_times = 3
+            max_audit_times = 5
             # Audit previous program execution
-            print(f"Auditing (attempt {audit_count}) for question {question_data['question_index']}")
+            # print(f"Auditing (attempt {audit_count}) for question {question_data['question_index']}")
             new_program, output, messages = self(execution_record, question_data, program, prompt)
             image = Image.open(
                 os.path.join(images_folder_path, question_data["image_filename"])
@@ -1010,7 +1010,7 @@ class AuditAgent(Agent):
                     "final_result" : new_execution_record["execution"]["result_namespace"].get("final_result", None),
                 }
 
-                print(f"Auditing (attempt {audit_count}) for question {question_data['question_index']}")
+                # print(f"Auditing (attempt {audit_count}) for question {question_data['question_index']}")
                 new_program, output, messages = self(new_execution_record, question_data, new_program, prompt)
                 audit_record["audit_result"].append({
                     "audit_index":audit_count,
