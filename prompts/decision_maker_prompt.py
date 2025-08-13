@@ -7,24 +7,24 @@ answers: {answers}
 
 Select ONE index to return using these rules:
 
-0) First, identify all answers that are logical and consistent with the question.
-   - Logical = not None/NaN/±inf and not an empty string; type matches the question (e.g., yes/no → "yes"/"no").
-   - Reject values whose scale is far outside any reference measurement given in the question. For example, if the question says “The couch is 0.4 m tall” and a candidate answer for another piece of indoor furniture in the same image is 1200 m or 0.003m is not logical. Prefer answers within the same order of magnitude as the reference unless the units are clearly different.
+1) First, identify all answers that are valid, logical and consistent with the question.
+   - Valid = a finite numeric value (not None/NaN/±inf) or a non-empty string.
+      - If the question is yes/no, the answer must be "yes" or "no" in text, or a boolean result
+      - If the question is multiple-choice among listed options, the answer must match one of those options (text or a valid index depends on what the question asks).
+   - Logical = the value is sensible given the question context (e.g. when the question asks for a count/ordinal/index, negative numbers are illogical)
+      - A numeric answer is illogical when it differs from an explicit reference in the question by several orders of magnitude (e.g., an indoor furniture height of 50 m vs. a reference of 0.4 m)
 
-1) Prefer NON-GUESS over GUESS:
-   - If an answer/program contains the marker "is_guess = True", treat it as a guess.
+2) Prefer NON-GUESS over GUESS:
+   - If an answer's corresponding program contains the marker "is_guess = True", treat it as a guess.
    - When at least one non-guess has a valid logical answer, ignore all guesses.
 
-2) Among the remaining logical answers, compare their corresponding programs. Choose the one that:
-   - does not contain major reasoning errors;
-   - most closely aligns with the intent of the question (e.g., stable bbox selection, unit consistency, sensible use of depth, avoiding duplicate counting).
+3) If multiple candidates remain after step 2, check their corresponding programs for severe logical flaws or mismatches between the program's logic and the question's intent (e.g., ignoring specific object constraints, quantities, spatial qualifiers) that directly affect the correctness of the result. Only remove candidates if such issues are clearly present.
 
-3) Tie-break: if multiple logical candidates remain equivalent, choose the one with the **HIGHEST index**.
+4) Tie-break: if multiple valid and logical candidates remain equivalent after step 3, return the highest index among them.
 
-4) Fallbacks:
-   - If no candidate is logical, return 0.
-   - If your chosen index would be 0 but answers[0] is not logical while some other index is, instead return the **HIGHEST index** among those with a logical answer.
-   - If none have a logical answer, return 0.
+5) Fallbacks:
+   - If no candidate is logical, return the highest index among those with a valid answer.
+   - If none have a valid answer, return 0.
 
 Wrap your choice in <index>...</index>.
 """

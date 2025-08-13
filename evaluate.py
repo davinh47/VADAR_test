@@ -132,7 +132,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--num-api-questions",
-        default=2,
+        default=10,
         type=int,
         help="Number of questions to loop through for api (default: %(default)s)",
     )

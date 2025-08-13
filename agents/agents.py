@@ -12,6 +12,7 @@ import runpy
 import shutil
 import traceback
 import pandas as pd
+import math
 
 module_path = os.path.abspath(os.path.join(".."))
 if module_path not in sys.path:
@@ -888,6 +889,31 @@ class AuditAgent(Agent):
         self.audit_results = dict()
         self.predef_signatures = predef_signatures
 
+    def _filter_answers(self, answers):
+        def _is_valid(ans):
+            # None
+            if ans is None:
+                return False
+            # float NaN / +/-inf
+            if isinstance(ans, float):
+                if math.isnan(ans) or math.isinf(ans):
+                    return False
+                return True
+            # strings like "", "none", "null", "nan"
+            if isinstance(ans, str):
+                s = ans.strip().lower()
+                if s in ("", "none", "null", "nan"):
+                    return False
+                return True
+            # empty list/dict
+            if isinstance(ans, (list, dict)):
+                return len(ans) > 0
+            # other types considered valid
+            return True
+
+        # keep entries whose "answer" passes validity
+        return {idx: rec for idx, rec in answers.items() if _is_valid(rec.get("answer"))}
+
     def remove_substring(self, output, substring):
         if substring in output:
             return output.replace(substring, "")
@@ -1034,10 +1060,18 @@ class AuditAgent(Agent):
                 idx: {"program": rec["program"], "answer": rec["final_result"]}
                 for idx, rec in executions.items()
             }
-            if len(answers) == 1:
-                index = 0
+            # Pre-filter invalid/empty answers (None/null/NaN/±inf/empty string/list/dict)
+            filtered_answers = self._filter_answers(answers)
+
+            if len(filtered_answers) == 1:
+                # exactly one usable candidate -> take its original index
+                index = next(iter(filtered_answers.keys()))
+            elif len(filtered_answers) > 1:
+                # let DM choose among cleaned candidates
+                index = self.decision_maker(question_data["question"], filtered_answers)
             else:
-                index = self.decision_maker(question_data["question"], answers)
+                # if everything is invalid/empty, fall back to original (index 0)
+                index = 0
 
             if index != len(answers) - 1:
                 with open(self.engine.program_executable_path, 'w') as f:

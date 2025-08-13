@@ -13,9 +13,11 @@ json_path = os.path.join(folder, 'annotations.json')
 with open(json_path, 'r') as f:
     json_file = json.load(f)
 
-random.seed(95)
-sampled_data = random.sample(json_file['questions'], 6)
-
+random.seed(0)
+# sampled_data = random.sample(json_file['questions'], 20)
+# indices = [3, 13, 193, 215, 217, 220, 226, 264, 269, 274, 276, 278, 279, 280, 286, 299, 324, 331, 335, 343, 355]
+indices =[446, 452, 453, 454, 460, 467, 468, 480, 482, 484, 487, 488, 490, 492, 493, 496, 497, 498, 441]
+sampled_data = [json_file['questions'][i] for i in indices]
 for entry in sampled_data:
     rel_path = entry["image_filename"]  # full path
     src_path = os.path.join(image_folder, rel_path)
